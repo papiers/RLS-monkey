@@ -140,7 +140,7 @@ func isDigit(ch byte) bool {
 }
 
 // readString 读取字符串字符
-func readString(l *Lexer) string {
+func (l *Lexer) readString() string {
 	position := l.position + 1
 	for {
 		l.readChar()
