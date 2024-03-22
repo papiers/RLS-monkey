@@ -23,10 +23,12 @@ const (
 	COMMA     = ","
 	SEMICOLON = ";"
 
-	LPAREN = "("
-	RPAREN = ")"
-	LBRACE = "{"
-	RBRACE = "}"
+	LPAREN   = "("
+	RPAREN   = ")"
+	LBRACE   = "{"
+	RBRACE   = "}"
+	LBRACKET = "["
+	RBRACKET = "]"
 
 	FUNCTION = "FUNCTION"
 	LET      = "LET"
@@ -37,15 +39,23 @@ const (
 	ELSE     = "ELSE"
 )
 
+// TypeToken 标记类型
 type TypeToken string
 
+// Token 标记
 type Token struct {
 	Type    TypeToken
 	Literal string
 }
 
+// New 创建标记
 func New(typeToken TypeToken, ch byte) Token {
 	return Token{Type: typeToken, Literal: string(ch)}
+}
+
+// NewString 字符串创建标记
+func NewString(typeToken TypeToken, str string) Token {
+	return Token{Type: typeToken, Literal: str}
 }
 
 var keywords = map[string]TypeToken{
