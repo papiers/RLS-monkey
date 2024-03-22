@@ -14,6 +14,7 @@ const (
 	RETURN_VALUE TypeObject = "RETURN_VALUE"
 	ERROR        TypeObject = "ERROR"
 	FUNCTION     TypeObject = "FUNCTION"
+	STRING       TypeObject = "STRING"
 )
 
 // TypeObject 对象类型
@@ -103,3 +104,14 @@ func (f *Function) Inspect() string {
 	out.WriteString("\n}")
 	return out.String()
 }
+
+// String 字符串对象
+type String struct {
+	Value string
+}
+
+// Type 返回对象类型
+func (s *String) Type() TypeObject { return STRING }
+
+// Inspect 返回对象字符串表示
+func (s *String) Inspect() string { return s.Value }

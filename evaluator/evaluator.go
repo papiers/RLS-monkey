@@ -76,6 +76,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return args[0]
 		}
 		return applyFunction(function, args)
+	case *ast.StringLiteral:
+		return &object.String{Value: node.Value}
 	default:
 		return &object.Error{Message: "unknown node type for eval"}
 	}
@@ -163,10 +165,20 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 
 // evalInfixExpression 执行中缀表达式
 func evalInfixExpression(operator string, left, right object.Object) object.Object {
-	l, okLeft := left.(*object.Integer)
-	r, okRight := right.(*object.Integer)
-	if okLeft && okRight && left.Type() == object.INTEGER && right.Type() == object.INTEGER {
-		return evalIntegerInfixExpression(operator, l, r)
+
+	if left.Type() == object.INTEGER && right.Type() == object.INTEGER {
+		l, okLeft := left.(*object.Integer)
+		r, okRight := right.(*object.Integer)
+		if okLeft && okRight {
+			return evalIntegerInfixExpression(operator, l, r)
+		}
+	}
+	if left.Type() == object.STRING && right.Type() == object.STRING {
+		l, okLeft := left.(*object.String)
+		r, okRight := right.(*object.String)
+		if okLeft && okRight {
+			return evalStringInfixExpression(operator, l, r)
+		}
 	}
 	if operator == "==" {
 		return nativeBoolToBooleanObject(left == right)
@@ -200,7 +212,15 @@ func evalIntegerInfixExpression(operator string, left, right *object.Integer) ob
 		return nativeBoolToBooleanObject(left.Value != right.Value)
 	}
 	return &object.Error{Message: "unsupported operator: " + string(left.Type()) + " " + operator + " " + string(right.Type())}
+}
 
+// evalStringInfixExpression
+func evalStringInfixExpression(operator string, left, right *object.String) object.Object {
+	switch operator {
+	case "+":
+		return &object.String{Value: left.Value + right.Value}
+	}
+	return &object.Error{Message: "unsupported operator: " + string(left.Type()) + " " + operator + " " + string(right.Type())}
 }
 
 // evalIfExpression 计算if表达式

@@ -159,6 +159,7 @@ func TestErrorHandling(t *testing.T) {
 		{"5; 10 + true;", "type mismatch: INTEGER + BOOLEAN"},
 		{"if (10 > 1) { if (10 > 2) { return true + false; } return 1; } 10", "unsupported operator: BOOLEAN + BOOLEAN"},
 		{"foobar", "identifier not found: foobar"},
+		{`"Hello" - "World"`, "unsupported operator: STRING - STRING"},
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
@@ -222,5 +223,30 @@ func TestFunctionApplication(t *testing.T) {
 	}
 	for _, tt := range tests {
 		testIntegerObject(t, testEval(tt.input), tt.expected)
+	}
+}
+
+func TestStringLiteral(t *testing.T) {
+	input := `"Hello World!"`
+	evaluated := testEval(input)
+	str, ok := evaluated.(*object.String)
+	if !ok {
+		t.Fatalf("obj is not String. got=%T (%+v)", evaluated, evaluated)
+	}
+	if str.Value != "Hello World!" {
+		t.Errorf("str is not Hello World!. got=%q", str.Value)
+	}
+}
+
+func TestStringConcatenation(t *testing.T) {
+	input := `"Hello" + " " + "World!"`
+	expected := "Hello World!"
+	evaluated := testEval(input)
+	str, ok := evaluated.(*object.String)
+	if !ok {
+		t.Fatalf("obj is not String. got=%T (%+v)", evaluated, evaluated)
+	}
+	if str.Value != expected {
+		t.Errorf("str is not %q. got=%q", expected, str.Value)
 	}
 }

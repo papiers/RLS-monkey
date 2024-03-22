@@ -9,25 +9,25 @@ import (
 
 // Node 定义节点类型
 type Node interface {
-	TokenLiteral() string
-	String() string
+	TokenLiteral() string // 返回节点的token值
+	String() string       // 返回节点的字符串
 }
 
 // Statement 定义语句节点类型
 type Statement interface {
-	Node
-	statementNode()
+	Node            // 语句节点为节点
+	statementNode() // 语句节点为语句
 }
 
 // Expression 定义表达式节点类型
 type Expression interface {
-	Node
-	expressionNode()
+	Node             // 表达式节点为节点
+	expressionNode() // 表达式节点为表达式
 }
 
 // Program 定义程序节点
 type Program struct {
-	Statements []Statement
+	Statements []Statement // 程序节点中的语句
 }
 
 // 定义程序节点为节点
@@ -75,9 +75,9 @@ func (i *Identifier) String() string {
 
 // LetStatement 定义let语句节点
 type LetStatement struct {
-	Token token.Token
-	Name  *Identifier
-	Value Expression
+	Token token.Token // let关键字token
+	Name  *Identifier // let语句的标识符
+	Value Expression  // let语句的值表达式
 }
 
 // 定义let语句节点为语句
@@ -382,4 +382,26 @@ func (c *CallExpression) String() string {
 	out.WriteString(strings.Join(args, ", "))
 	out.WriteString(")")
 	return out.String()
+}
+
+// StringLiteral 定义字符串节点
+type StringLiteral struct {
+	Token token.Token // 字符串token
+	Value string      // 字符串值
+}
+
+// 定义字符串节点为表达式
+var _ Expression = (*StringLiteral)(nil)
+
+// expressionNode 标识字符串节点为表达式
+func (s *StringLiteral) expressionNode() {}
+
+// TokenLiteral 返回字符串节点的token值
+func (s *StringLiteral) TokenLiteral() string {
+	return s.Token.Literal
+}
+
+// String 返回字符串节点的字符串
+func (s *StringLiteral) String() string {
+	return s.Token.Literal
 }
