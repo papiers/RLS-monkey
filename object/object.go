@@ -15,6 +15,7 @@ const (
 	ERROR        TypeObject = "ERROR"
 	FUNCTION     TypeObject = "FUNCTION"
 	STRING       TypeObject = "STRING"
+	BUILTIN      TypeObject = "BUILTIN"
 )
 
 // TypeObject 对象类型
@@ -115,3 +116,17 @@ func (s *String) Type() TypeObject { return STRING }
 
 // Inspect 返回对象字符串表示
 func (s *String) Inspect() string { return s.Value }
+
+// BuiltinFunction 自定义函数
+type BuiltinFunction func(args ...Object) Object
+
+// Builtin 自定义函数对象
+type Builtin struct {
+	Fn BuiltinFunction // 自定义函数
+}
+
+// Type 返回对象类型
+func (b *Builtin) Type() TypeObject { return BUILTIN }
+
+// Inspect 返回对象字符串表示
+func (b *Builtin) Inspect() string { return "builtin function" }

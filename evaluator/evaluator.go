@@ -264,6 +264,9 @@ func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object
 	if val, ok := env.Get(node.Value); ok {
 		return val
 	}
+	if builtin, ok := builtins[node.Value]; ok {
+		return builtin
+	}
 	return &object.Error{Message: "identifier not found: " + node.Value}
 }
 
@@ -282,13 +285,17 @@ func evalExpressions(exps []ast.Expression, env *object.Environment) []object.Ob
 
 // applyFunction 计算函数调用
 func applyFunction(fn object.Object, args []object.Object) object.Object {
-	fun, ok := fn.(*object.Function)
-	if !ok {
-		return &object.Error{Message: "not a function"}
+	if fun, ok := fn.(*object.Function); ok {
+		extendedEnv := extendFunctionEnv(fun, args)
+		evaluated := Eval(fun.Body, extendedEnv)
+		return unwrapReturnValue(evaluated)
 	}
-	extendedEnv := extendFunctionEnv(fun, args)
-	evaluated := Eval(fun.Body, extendedEnv)
-	return unwrapReturnValue(evaluated)
+
+	if builtin, ok := fn.(*object.Builtin); ok {
+		return builtin.Fn(args...)
+	}
+
+	return &object.Error{Message: "not a function"}
 }
 
 // extendFunctionEnv 扩展函数环境
