@@ -18,6 +18,7 @@ const (
 	product         // *
 	prefix          // -X or !X
 	call            // function call
+	index           // array index
 )
 
 // 优先级
@@ -31,6 +32,7 @@ var precedences = map[token.TypeToken]int{
 	token.SLASH:    product,
 	token.ASTERISK: product,
 	token.LPAREN:   call,
+	token.LBRACKET: index,
 }
 
 type (
@@ -73,6 +75,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.STRING, p.parseStringLiteral)
+	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
 
 	// 初始化infixParseFns
 	p.infixParseFns = map[token.TypeToken]infixParseFunc{}
@@ -85,6 +88,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
+	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
 
 	return p
 }
@@ -369,33 +373,52 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 // parseCallExpression 解析调用表达式
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	exp := &ast.CallExpression{Token: p.curToken, Function: function}
-	exp.Arguments = p.parseCallArguments()
+	exp.Arguments = p.parseExpressionList(token.RPAREN)
 	return exp
 }
 
-// parseCallArguments 解析调用参数
-func (p *Parser) parseCallArguments() []ast.Expression {
-	var args []ast.Expression
-	if p.peekTokenIs(token.RPAREN) {
-		p.nextToken()
-		return args
-	}
+// parseIndexExpression 解析索引表达式
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
 	p.nextToken()
-	args = append(args, p.parseExpression(lowest))
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
-		args = append(args, p.parseExpression(lowest))
-	}
-	if !p.expectPeek(token.RPAREN) {
+	exp.Index = p.parseExpression(lowest)
+	if !p.expectPeek(token.RBRACKET) {
 		return nil
 	}
-	return args
+	return exp
 }
 
 // parseStringLiteral 解析字符串字面量
 func (p *Parser) parseStringLiteral() ast.Expression {
 	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+// parseArrayLiteral 解析数组字面量
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	array := &ast.ArrayLiteral{Token: p.curToken}
+	array.Elements = p.parseExpressionList(token.RBRACKET)
+	return array
+}
+
+// parseExpressionList 解析表达式列表
+func (p *Parser) parseExpressionList(end token.TypeToken) []ast.Expression {
+	var list []ast.Expression
+	if p.peekTokenIs(end) {
+		p.nextToken()
+		return list
+	}
+	p.nextToken()
+	list = append(list, p.parseExpression(lowest))
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		p.nextToken()
+		list = append(list, p.parseExpression(lowest))
+	}
+	if !p.expectPeek(end) {
+		return nil
+	}
+	return list
 }
 
 // noPrefixParseFnError 未找到前缀解析函数

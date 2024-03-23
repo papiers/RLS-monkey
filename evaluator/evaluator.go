@@ -78,6 +78,22 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return applyFunction(function, args)
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
+	case *ast.ArrayLiteral:
+		elements := evalExpressions(node.Elements, env)
+		if len(elements) == 1 && isError(elements[0]) {
+			return elements[0]
+		}
+		return &object.Array{Elements: elements}
+	case *ast.IndexExpression:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evalIndexExpression(left, index)
 	default:
 		return &object.Error{Message: "unknown node type for eval"}
 	}
@@ -313,4 +329,26 @@ func unwrapReturnValue(obj object.Object) object.Object {
 		return returnValue.Value
 	}
 	return obj
+}
+
+// evalIndexExpression 计算索引表达式
+func evalIndexExpression(left, index object.Object) object.Object {
+	switch {
+	case left.Type() == object.ARRAY && index.Type() == object.INTEGER:
+		l, okL := left.(*object.Array)
+		i, okI := index.(*object.Integer)
+		if okL && okI {
+			return evalArrayIndexExpression(l, i)
+		}
+	}
+	return &object.Error{Message: "index operator not supported"}
+}
+
+// evalArrayIndexExpression 计算数组索引表达式
+func evalArrayIndexExpression(arr *object.Array, index *object.Integer) object.Object {
+	i := int(index.Value)
+	if i < 0 || i > len(arr.Elements)-1 {
+		return Null
+	}
+	return arr.Elements[i]
 }

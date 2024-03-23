@@ -405,3 +405,64 @@ func (s *StringLiteral) TokenLiteral() string {
 func (s *StringLiteral) String() string {
 	return s.Token.Literal
 }
+
+// ArrayLiteral 定义数组节点
+type ArrayLiteral struct {
+	Token    token.Token  // 数组token
+	Elements []Expression // 数组元素列表
+}
+
+// 定义数组节点为表达式
+var _ Expression = (*ArrayLiteral)(nil)
+
+// expressionNode 标识数组节点为表达式
+func (a *ArrayLiteral) expressionNode() {}
+
+// TokenLiteral 返回数组节点的token值
+func (a *ArrayLiteral) TokenLiteral() string {
+	return a.Token.Literal
+}
+
+// String 返回数组节点的字符串
+func (a *ArrayLiteral) String() string {
+	var out bytes.Buffer
+	var elements []string
+	for _, e := range a.Elements {
+		elements = append(elements, e.String())
+	}
+	out.WriteString("[")
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+
+	return out.String()
+}
+
+// IndexExpression 定义数组索引节点
+type IndexExpression struct {
+	Token token.Token // 索引token
+	Left  Expression  // 数组节点
+	Index Expression  // 索引节点
+}
+
+// 定义数组索引节点为表达式
+var _ Expression = (*IndexExpression)(nil)
+
+// expressionNode 标识数组索引节点为表达式
+func (i *IndexExpression) expressionNode() {}
+
+// TokenLiteral 返回数组索引节点的token值
+func (i *IndexExpression) TokenLiteral() string {
+	return i.Token.Literal
+}
+
+// String 返回数组索引节点的字符串
+func (i *IndexExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(i.Left.String())
+	out.WriteString("[")
+	out.WriteString(i.Index.String())
+	out.WriteString("]")
+	out.WriteString(")")
+	return out.String()
+}
