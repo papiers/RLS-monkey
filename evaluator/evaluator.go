@@ -94,6 +94,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return index
 		}
 		return evalIndexExpression(left, index)
+	case *ast.HashLiteral:
+		return evalHashLiteral(node, env)
 	default:
 		return &object.Error{Message: "unknown node type for eval"}
 	}

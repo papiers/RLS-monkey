@@ -466,3 +466,33 @@ func (i *IndexExpression) String() string {
 	out.WriteString(")")
 	return out.String()
 }
+
+// HashLiteral 定义哈希节点
+type HashLiteral struct {
+	Token token.Token               // 哈希token
+	Pairs map[Expression]Expression // 哈希键值对
+}
+
+// 定义哈希节点为表达式
+var _ Expression = (*HashLiteral)(nil)
+
+// expressionNode 标识哈希节点为表达式
+func (h *HashLiteral) expressionNode() {}
+
+// TokenLiteral 返回哈希节点的token值
+func (h *HashLiteral) TokenLiteral() string {
+	return h.Token.Literal
+}
+
+// String 返回哈希节点的字符串
+func (h *HashLiteral) String() string {
+	var out bytes.Buffer
+	var pairs []string
+	for key, value := range h.Pairs {
+		pairs = append(pairs, key.String()+":"+value.String())
+	}
+	out.WriteString("{")
+	out.WriteString(strings.Join(pairs, ", "))
+	out.WriteString("}")
+	return out.String()
+}
