@@ -342,6 +342,11 @@ func evalIndexExpression(left, index object.Object) object.Object {
 		if okL && okI {
 			return evalArrayIndexExpression(l, i)
 		}
+	case left.Type() == object.HASH:
+		l, okL := left.(*object.Hash)
+		if okL {
+			return evalHashIndexExpression(l, index)
+		}
 	}
 	return &object.Error{Message: "index operator not supported"}
 }
@@ -353,4 +358,38 @@ func evalArrayIndexExpression(arr *object.Array, index *object.Integer) object.O
 		return Null
 	}
 	return arr.Elements[i]
+}
+
+// evalHashLiteral 计算哈希字面量
+func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Object {
+	pairs := make(map[object.HashKey]object.HashPair)
+	for keyNode, valueNode := range node.Pairs {
+		key := Eval(keyNode, env)
+		if isError(key) {
+			return key
+		}
+		hashKey, ok := key.(object.Hashable)
+		if !ok {
+			return &object.Error{Message: "unusable as hash key"}
+		}
+		value := Eval(valueNode, env)
+		if isError(value) {
+			return value
+		}
+		pairs[hashKey.HashKey()] = object.HashPair{Key: key, Value: value}
+	}
+	return &object.Hash{Pairs: pairs}
+}
+
+// evalHashIndexExpression 计算哈希索引表达式
+func evalHashIndexExpression(hash *object.Hash, index object.Object) object.Object {
+	key, ok := index.(object.Hashable)
+	if !ok {
+		return &object.Error{Message: "unusable as hash key: " + string(index.Type())}
+	}
+	pair, ok := hash.Pairs[key.HashKey()]
+	if !ok {
+		return Null
+	}
+	return pair.Value
 }

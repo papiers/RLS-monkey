@@ -41,7 +41,7 @@ var builtins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("argument to `put` must be Array, got %s", arg.Type()),
 				}
 			}
-			return &object.Null{}
+			return Null
 		},
 	},
 	"first": {
@@ -56,7 +56,7 @@ var builtins = map[string]*object.Builtin{
 				if len(arg.Elements) > 0 {
 					return arg.Elements[0]
 				}
-				return &object.Null{}
+				return Null
 			default:
 				return &object.Error{
 					Message: fmt.Sprintf("argument to `first` must be Array, got %s", arg.Type()),
@@ -77,7 +77,7 @@ var builtins = map[string]*object.Builtin{
 				if l > 0 {
 					return arg.Elements[l-1]
 				}
-				return &object.Null{}
+				return Null
 			default:
 				return &object.Error{
 					Message: fmt.Sprintf("argument to `last` must be Array, got %s", arg.Type()),
@@ -100,7 +100,7 @@ var builtins = map[string]*object.Builtin{
 					copy(newElements, arg.Elements[1:])
 					return &object.Array{Elements: newElements}
 				}
-				return &object.Null{}
+				return Null
 			default:
 				return &object.Error{
 					Message: fmt.Sprintf("argument to `rest` must be Array, got %s", arg.Type()),
@@ -117,8 +117,11 @@ var builtins = map[string]*object.Builtin{
 			}
 			switch arg := args[0].(type) {
 			case *object.Array:
-				arg.Elements = append(arg.Elements, args[1])
-				return arg
+				l := len(arg.Elements)
+				newElements := make([]object.Object, l+1, l+1)
+				copy(newElements, arg.Elements)
+				newElements[l] = args[1]
+				return &object.Array{Elements: newElements}
 			default:
 				return &object.Error{
 					Message: fmt.Sprintf("argument to `push` must be Array, got %s", arg.Type()),

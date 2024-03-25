@@ -30,6 +30,12 @@ type Object interface {
 	Inspect() string  // 返回对象字符串表示
 }
 
+// HashKey 哈希键对象
+type HashKey struct {
+	Type  TypeObject // 哈希键类型
+	Value uint64     // 哈希键值
+}
+
 // Hashable 哈希键接口
 type Hashable interface {
 	HashKey() HashKey
@@ -52,6 +58,7 @@ func (i *Integer) Type() TypeObject { return INTEGER }
 // Inspect 返回对象字符串表示
 func (i *Integer) Inspect() string { return fmt.Sprintf("%d", i.Value) }
 
+// HashKey 实现 Hashable 接口
 func (i *Integer) HashKey() HashKey {
 	return HashKey{Type: i.Type(), Value: uint64(i.Value)}
 }
@@ -64,11 +71,25 @@ type Boolean struct {
 // 定义 Boolean 对象实现 Object 接口
 var _ Object = (*Boolean)(nil)
 
+// 定义 Boolean 对象实现 Hashable 接口
+var _ Hashable = (*Boolean)(nil)
+
 // Type 返回对象类型
 func (b *Boolean) Type() TypeObject { return BOOLEAN }
 
 // Inspect 返回对象字符串表示
 func (b *Boolean) Inspect() string { return fmt.Sprintf("%t", b.Value) }
+
+// HashKey 实现 Hashable 接口
+func (b *Boolean) HashKey() HashKey {
+	var value uint64
+	if b.Value {
+		value = 1
+	} else {
+		value = 0
+	}
+	return HashKey{Type: b.Type(), Value: value}
+}
 
 // Null 空对象
 type Null struct{}
@@ -147,13 +168,16 @@ type String struct {
 // 定义 String 对象实现 Object 接口
 var _ Object = (*String)(nil)
 
+// 定义 String 对象实现 Hashable 接口
+var _ Hashable = (*String)(nil)
+
 // Type 返回对象类型
 func (s *String) Type() TypeObject { return STRING }
 
 // Inspect 返回对象字符串表示
 func (s *String) Inspect() string { return s.Value }
 
-// HashKey 哈希键对象
+// HashKey 实现 Hashable 接口
 func (s *String) HashKey() HashKey {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(s.Value))
@@ -201,12 +225,6 @@ func (a *Array) Inspect() string {
 	return out.String()
 }
 
-// HashKey 哈希键对象
-type HashKey struct {
-	Type  TypeObject // 哈希键类型
-	Value uint64     // 哈希键值
-}
-
 // HashPair 哈希键值对
 type HashPair struct {
 	Key   Object // 哈希键
@@ -215,7 +233,7 @@ type HashPair struct {
 
 // Hash 哈希对象
 type Hash struct {
-	Pairs map[HashKey]HashPair
+	Pairs map[HashKey]HashPair // 哈希键值对
 }
 
 // 定义 Hash 对象实现 Object 接口

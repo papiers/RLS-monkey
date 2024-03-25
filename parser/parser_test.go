@@ -653,3 +653,87 @@ func TestParsingIndexExpressions(t *testing.T) {
 		return
 	}
 }
+
+func TestParsingHashLiteralsStringKeys(t *testing.T) {
+	input := `{"one": 1, "two": 2}`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt := program.Statements[0].(*ast.ExpressionStatement)
+	hashLiteral, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("exp is not ast.HashLiteral. Got=%T", stmt.Expression)
+	}
+	if len(hashLiteral.Pairs) != 2 {
+		t.Errorf("len(hashLiteral.Pairs) is not 2. Got=%d", len(hashLiteral.Pairs))
+	}
+	expected := map[string]int64{
+		"one": 1,
+		"two": 2,
+	}
+	for keyNode, valueNode := range hashLiteral.Pairs {
+		key, ok := keyNode.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("key is not *ast.StringLiteral. Got=%T", keyNode)
+		}
+		expectedKey := expected[key.Value]
+		testIntegerLiteral(t, valueNode, expectedKey)
+	}
+}
+
+func TestParsingEmptyHastLiterals(t *testing.T) {
+	input := "{}"
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt := program.Statements[0].(*ast.ExpressionStatement)
+	hashLiteral, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("exp is not ast.HashLiteral. Got=%T", stmt.Expression)
+	}
+	if len(hashLiteral.Pairs) != 0 {
+		t.Errorf("len(hashLiteral.Pairs) is not 0. Got=%d", len(hashLiteral.Pairs))
+	}
+}
+
+func TestParsingHashLiteralsExpressions(t *testing.T) {
+	input := `{"one": 0 + 1, "two": 10 - 8, "three": 2 * 3}`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt := program.Statements[0].(*ast.ExpressionStatement)
+	hashLiteral, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("exp is not ast.HashLiteral. Got=%T", stmt.Expression)
+	}
+	if len(hashLiteral.Pairs) != 3 {
+		t.Errorf("len(hashLiteral.Pairs) is not 3. Got=%d", len(hashLiteral.Pairs))
+	}
+	tests := map[string]func(ast.Expression){
+		"one": func(e ast.Expression) {
+			testInfixExpression(t, e, 0, "+", 1)
+		},
+		"two": func(e ast.Expression) {
+			testInfixExpression(t, e, 10, "-", 8)
+		},
+		"three": func(e ast.Expression) {
+			testInfixExpression(t, e, 2, "*", 3)
+		},
+	}
+	for keyNode, valueNode := range hashLiteral.Pairs {
+		key, ok := keyNode.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("key is not *ast.StringLiteral. Got=%T", keyNode)
+			continue
+		}
+		testFunc, ok := tests[key.Value]
+		if !ok {
+			t.Errorf("No test function for %q key.", key.Value)
+			continue
+		}
+		testFunc(valueNode)
+	}
+}
