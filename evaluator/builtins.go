@@ -26,20 +26,10 @@ var builtins = map[string]*object.Builtin{
 			}
 		},
 	},
-	"put": {
+	"puts": {
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return &object.Error{
-					Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args)),
-				}
-			}
-			switch arg := args[0].(type) {
-			case *object.Array:
-				arg.Elements = append(arg.Elements, args[1])
-			default:
-				return &object.Error{
-					Message: fmt.Sprintf("argument to `put` must be Array, got %s", arg.Type()),
-				}
+			for _, arg := range args {
+				fmt.Println(arg.Inspect())
 			}
 			return Null
 		},
