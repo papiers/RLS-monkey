@@ -15,5 +15,5 @@ func main() {
 	}
 	fmt.Printf("Hello %s \n", current.Username)
 	fmt.Printf("Feel free to type in commands \n")
-	repl.Start(os.Stdin, os.Stdout)
+	repl.StartNew(os.Stdin, os.Stdout)
 }

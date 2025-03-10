@@ -1,0 +1,126 @@
+package compiler
+
+import (
+	"fmt"
+	"testing"
+
+	"monkey/ast"
+	"monkey/code"
+	"monkey/lexer"
+	"monkey/object"
+	"monkey/parser"
+)
+
+type compilerTestCase struct {
+	input                string
+	expectedConstants    []any
+	expectedInstructions []code.Instructions
+}
+
+func TestIntegerArithmetic(t *testing.T) {
+	testCases := []compilerTestCase{
+		{
+			input:             "1 + 2",
+			expectedConstants: []any{1, 2},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpAdd),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "1; 2",
+			expectedConstants: []any{1, 2},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTest(t, testCases)
+}
+
+// runCompilerTest 运行编译器测试用例
+func runCompilerTest(t *testing.T, tests []compilerTestCase) {
+	t.Helper()
+	for _, tt := range tests {
+		program := parse(tt.input)
+		compiler := New()
+		err := compiler.Compile(program)
+		if err != nil {
+			t.Fatalf("compiler error: %s", err)
+		}
+		bytecode := compiler.Bytecode()
+
+		err = testInstructions(t, tt.expectedInstructions, bytecode.Instructions)
+		if err != nil {
+			t.Fatalf("testInstructions failed: %s", err)
+		}
+		err = testConstants(t, tt.expectedConstants, bytecode.Constants)
+		if err != nil {
+			t.Fatalf("testConstants failed: %s", err)
+		}
+	}
+}
+
+// parses 解析输入的源代码
+func parse(input string) *ast.Program {
+	l := lexer.New(input)
+	p := parser.New(l)
+	return p.ParseProgram()
+}
+
+// testInstructions 测试指令
+func testInstructions(t *testing.T, expected []code.Instructions, actual code.Instructions) error {
+	concat := concatInstructions(expected)
+	if len(concat) != len(actual) {
+		return fmt.Errorf("wrong instructions length: want %d got %d", len(concat), len(actual))
+	}
+	for i := range concat {
+		if concat[i] != actual[i] {
+			return fmt.Errorf("wrong instruction at %d: want %q got %q", i, concat[i], actual[i])
+		}
+	}
+	return nil
+}
+
+// concatInstructions 连接指令
+func concatInstructions(instructions []code.Instructions) code.Instructions {
+	var result code.Instructions
+	for _, ins := range instructions {
+		result = append(result, ins...)
+	}
+	return result
+}
+
+// testConstants 测试常量
+func testConstants(t *testing.T, expected []any, actual []object.Object) error {
+	if len(expected) != len(actual) {
+		return fmt.Errorf("expected %d instructions, got %d", len(expected), len(actual))
+	}
+	for i, constant := range expected {
+		switch constant := constant.(type) {
+		case int:
+			err := testIntegerObject(int64(constant), actual[i])
+			if err != nil {
+				return fmt.Errorf("constant %d failed: %s", i, err)
+			}
+		}
+	}
+	return nil
+}
+
+// testIntegerObject 测试整数对象
+func testIntegerObject(expected int64, actual object.Object) error {
+	result, ok := actual.(*object.Integer)
+	if !ok {
+		return fmt.Errorf("object is not Integer: %T", result)
+	}
+	if result.Value != expected {
+		return fmt.Errorf("object has wrong value, got %d want %d", result.Value, expected)
+	}
+	return nil
+}
