@@ -16,7 +16,6 @@ type vmTestCase struct {
 	expected any
 }
 
-// testIntegerArithmetic 测试整数算术
 func TestIntegerArithmetic(t *testing.T) {
 	tests := []vmTestCase{
 		{"1", 1},
@@ -36,7 +35,6 @@ func TestIntegerArithmetic(t *testing.T) {
 	runVMTests(t, tests)
 }
 
-// TestBooleanExpressions 测试布尔表达式
 func TestBooleanExpressions(t *testing.T) {
 	tests := []vmTestCase{
 		{"true", true},
@@ -64,6 +62,23 @@ func TestBooleanExpressions(t *testing.T) {
 		{"!!true", true},
 		{"!!false", false},
 		{"!!5", true},
+		{"!(if (false) { 5; })", true},
+	}
+	runVMTests(t, tests)
+}
+
+func TestConditionals(t *testing.T) {
+	tests := []vmTestCase{
+		{"if (true) { 10 }", 10},
+		{"if (true) { 10 } else { 20 }", 10},
+		{"if (false) { 10 } else { 20 }", 20},
+		{"if (1) { 10 }", 10},
+		{"if (1 < 2) { 10 }", 10},
+		{"if (1 < 2) { 10 } else { 20 }", 10},
+		{"if (1 > 2) { 10 } else { 20 }", 20},
+		{"if (1 > 2) { 10 }", Null},
+		{"if (false) { 10 }", Null},
+		{"if ((if (false) { 10 })) { 10 } else { 20 }", 20},
 	}
 	runVMTests(t, tests)
 }
@@ -101,6 +116,10 @@ func testExpectedObject(t *testing.T, expected any, actual object.Object) {
 		err := testBooleanObject(exp, actual)
 		if err != nil {
 			t.Errorf("testBooleanObject failed: %s", err)
+		}
+	case *object.Null:
+		if actual != Null {
+			t.Errorf("object is not NULL. got=%T (%+v)", actual, actual)
 		}
 	default:
 		t.Errorf("type of expected value not handled. Got=%T", exp)

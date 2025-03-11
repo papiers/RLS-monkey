@@ -8,17 +8,27 @@ import (
 	"monkey/object"
 )
 
+// EmittedInstruction 存储指令和位置
+type EmittedInstruction struct {
+	OpCode   code.Opcode
+	Position int
+}
+
 // Compiler 编译器
 type Compiler struct {
-	instructions code.Instructions
-	constants    []object.Object
+	instructions        code.Instructions
+	constants           []object.Object
+	lastInstruction     EmittedInstruction
+	previousInstruction EmittedInstruction
 }
 
 // New 创建编译器
 func New() *Compiler {
 	return &Compiler{
-		instructions: code.Instructions{},
-		constants:    []object.Object{},
+		instructions:        code.Instructions{},
+		constants:           []object.Object{},
+		lastInstruction:     EmittedInstruction{},
+		previousInstruction: EmittedInstruction{},
 	}
 }
 
@@ -99,6 +109,49 @@ func (c *Compiler) Compile(node ast.Node) error {
 		} else {
 			c.emit(code.OpFalse)
 		}
+	case *ast.IfExpression:
+		err := c.Compile(n.Condition)
+		if err != nil {
+			return err
+		}
+		// 记录发出虚假跳转指令的位置
+		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+		err = c.Compile(n.Consequence)
+		if err != nil {
+			return err
+		}
+		if c.lastInstructionIsPop() {
+			c.removeLastPop()
+		}
+		jumpPos := c.emit(code.OpJump, 9999)
+
+		// 回填else语句开始位置
+		afterConsequencePos := len(c.instructions)
+		c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+
+		if n.Alternative == nil {
+			c.emit(code.OpNull)
+		} else {
+			err = c.Compile(n.Alternative)
+			if err != nil {
+				return err
+			}
+			if c.lastInstructionIsPop() {
+				c.removeLastPop()
+			}
+
+		}
+		// 回填else后语句开始位置
+		afterAlternativePos := len(c.instructions)
+		c.changeOperand(jumpPos, afterAlternativePos)
+
+	case *ast.BlockStatement:
+		for _, s := range n.Statements {
+			err := c.Compile(s)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -111,7 +164,10 @@ func (c *Compiler) addConstant(obj object.Object) int {
 
 // emit 添加指令
 func (c *Compiler) emit(op code.Opcode, operand ...int) int {
-	return c.addInstruction(code.Make(op, operand...))
+	ins := code.Make(op, operand...)
+	pos := c.addInstruction(ins)
+	c.setLastInstruction(op, pos)
+	return pos
 }
 
 // addInstruction 添加指令
@@ -119,6 +175,36 @@ func (c *Compiler) addInstruction(ins []byte) int {
 	posNewIns := len(c.instructions)
 	c.instructions = append(c.instructions, ins...)
 	return posNewIns
+}
+
+// setLastInstruction 设置最后一条指令
+func (c *Compiler) setLastInstruction(op code.Opcode, pos int) {
+	c.previousInstruction = c.lastInstruction
+	c.lastInstruction = EmittedInstruction{op, pos}
+}
+
+// lastInstructionIsPop 最后一条指令是否为Pop
+func (c *Compiler) lastInstructionIsPop() bool {
+	return c.lastInstruction.OpCode == code.OpPop
+}
+
+// removeLastPop 移除最后一条Pop
+func (c *Compiler) removeLastPop() {
+	c.instructions = c.instructions[:c.lastInstruction.Position]
+	c.lastInstruction = c.previousInstruction
+}
+
+// replaceInstruction 替换指令
+func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
+	for i, b := range newInstruction {
+		c.instructions[pos+i] = b
+	}
+}
+
+// changeOperand 替换操作数
+func (c *Compiler) changeOperand(pos int, operand int) {
+	op := code.Opcode(c.instructions[pos])
+	c.replaceInstruction(pos, code.Make(op, operand))
 }
 
 // Bytecode 产生字节码

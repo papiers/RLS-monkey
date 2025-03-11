@@ -173,6 +173,40 @@ func TestBooleanArithmetic(t *testing.T) {
 	runCompilerTest(t, testCases)
 }
 
+func TestConditional(t *testing.T) {
+	testCases := []compilerTestCase{
+		{
+			input:             "if (true) { 10 } else { 20 }; 3333;",
+			expectedConstants: []any{10, 20, 3333},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),
+				code.Make(code.OpJumpNotTruthy, 10),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpJump, 13),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpPop),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "if (true) { 10 }; 3333;",
+			expectedConstants: []any{10, 3333},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),
+				code.Make(code.OpJumpNotTruthy, 10),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpJump, 11),
+				code.Make(code.OpNull),
+				code.Make(code.OpPop),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTest(t, testCases)
+}
+
 // runCompilerTest 运行编译器测试用例
 func runCompilerTest(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
@@ -207,11 +241,11 @@ func parse(input string) *ast.Program {
 func testInstructions(t *testing.T, expected []code.Instructions, actual code.Instructions) error {
 	concat := concatInstructions(expected)
 	if len(concat) != len(actual) {
-		return fmt.Errorf("wrong instructions length: want %d got %d", len(concat), len(actual))
+		return fmt.Errorf("wrong number of instructions, want\n%s got\n%s", concat, actual)
 	}
 	for i := range concat {
 		if concat[i] != actual[i] {
-			return fmt.Errorf("wrong instruction at %d: want %q got %q", i, concat[i], actual[i])
+			return fmt.Errorf("wrong instruction at %d: want\n%s got\n%s", i, concat, actual)
 		}
 	}
 	return nil
