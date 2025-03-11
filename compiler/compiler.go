@@ -38,7 +38,32 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		c.emit(code.OpPop)
+	case *ast.PrefixExpression:
+		err := c.Compile(n.Right)
+		if err != nil {
+			return err
+		}
+		switch n.Operator {
+		case "!":
+			c.emit(code.OpBang)
+		case "-":
+			c.emit(code.OpMinus)
+		default:
+			return fmt.Errorf("unsupported prefix operator %s", n.Operator)
+		}
 	case *ast.InfixExpression:
+		if n.Operator == "<" {
+			err := c.Compile(n.Right)
+			if err != nil {
+				return err
+			}
+			err = c.Compile(n.Left)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpGreaterThan)
+			return nil
+		}
 		err := c.Compile(n.Left)
 		if err != nil {
 			return err
@@ -50,12 +75,30 @@ func (c *Compiler) Compile(node ast.Node) error {
 		switch n.Operator {
 		case "+":
 			c.emit(code.OpAdd)
+		case "-":
+			c.emit(code.OpSub)
+		case "*":
+			c.emit(code.OpMul)
+		case "/":
+			c.emit(code.OpDiv)
+		case ">":
+			c.emit(code.OpGreaterThan)
+		case "==":
+			c.emit(code.OpEqual)
+		case "!=":
+			c.emit(code.OpNotEqual)
 		default:
 			return fmt.Errorf("unsupported operator %s", n.Operator)
 		}
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: n.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
+	case *ast.Boolean:
+		if n.Value {
+			c.emit(code.OpTrue)
+		} else {
+			c.emit(code.OpFalse)
+		}
 	}
 	return nil
 }

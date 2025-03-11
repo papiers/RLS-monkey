@@ -10,6 +10,11 @@ import (
 
 const StackSize = 2048
 
+var (
+	True  = &object.Boolean{Value: true}
+	False = &object.Boolean{Value: false}
+)
+
 type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
@@ -48,17 +53,38 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
-		case code.OpAdd:
-			right := vm.pop()
-			left := vm.pop()
-			leftVal := left.(*object.Integer).Value
-			rightVal := right.(*object.Integer).Value
-			err := vm.push(&object.Integer{Value: leftVal + rightVal})
+		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
+			err := vm.executeBinaryOperation(op)
 			if err != nil {
 				return err
 			}
 		case code.OpPop:
 			vm.pop()
+		case code.OpTrue:
+			err := vm.push(True)
+			if err != nil {
+				return err
+			}
+		case code.OpFalse:
+			err := vm.push(False)
+			if err != nil {
+				return err
+			}
+		case code.OpEqual, code.OpNotEqual, code.OpGreaterThan:
+			err := vm.executeComparison(op)
+			if err != nil {
+				return err
+			}
+		case code.OpBang:
+			err := vm.executeBangOperator()
+			if err != nil {
+				return err
+			}
+		case code.OpMinus:
+			err := vm.executeMinusOperator()
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unknown opcode: %d", op)
 		}
@@ -86,4 +112,105 @@ func (vm *VM) pop() object.Object {
 // LastPoppedStackElem 返回最近弹出的栈元素
 func (vm *VM) LastPoppedStackElem() object.Object {
 	return vm.stack[vm.sp]
+}
+
+// executeBinaryOperation 执行二元操作
+func (vm *VM) executeBinaryOperation(op code.Opcode) error {
+	right := vm.pop()
+	left := vm.pop()
+	leftType := left.Type()
+	rightType := right.Type()
+	if leftType == object.INTEGER && rightType == object.INTEGER {
+		return vm.executeBinaryIntegerOperation(op, left, right)
+	}
+	return fmt.Errorf("unsupported types for binary operation: %s %s", leftType, rightType)
+}
+
+// executeBinaryIntegerOperation 执行二元整数操作
+func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.Object) error {
+	leftVal := left.(*object.Integer).Value
+	rightVal := right.(*object.Integer).Value
+	var result int64
+	switch op {
+	case code.OpAdd:
+		result = leftVal + rightVal
+	case code.OpSub:
+		result = leftVal - rightVal
+	case code.OpMul:
+		result = leftVal * rightVal
+	case code.OpDiv:
+		result = leftVal / rightVal
+	default:
+		return fmt.Errorf("unknown operator: %c", op)
+	}
+	return vm.push(&object.Integer{Value: result})
+}
+
+// executeComparison 执行比较操作
+func (vm *VM) executeComparison(op code.Opcode) error {
+	right := vm.pop()
+	left := vm.pop()
+	leftType := left.Type()
+	rightType := right.Type()
+	if leftType == object.INTEGER && rightType == object.INTEGER {
+		return vm.executeIntegerComparison(op, left, right)
+	}
+	switch op {
+	case code.OpEqual:
+		return vm.push(nativeBoolToBooleanObject(left == right))
+	case code.OpNotEqual:
+		return vm.push(nativeBoolToBooleanObject(left != right))
+	default:
+		return fmt.Errorf("unknown operator: %d (%s %s)", op, leftType, rightType)
+	}
+}
+
+// executeIntegerComparison 执行整数比较
+func (vm *VM) executeIntegerComparison(op code.Opcode, left, right object.Object) error {
+	leftVal := left.(*object.Integer).Value
+	rightVal := right.(*object.Integer).Value
+	var result bool
+	switch op {
+	case code.OpEqual:
+		result = leftVal == rightVal
+	case code.OpNotEqual:
+		result = leftVal != rightVal
+	case code.OpGreaterThan:
+		result = leftVal > rightVal
+	default:
+		return fmt.Errorf("unknown operator: %c", op)
+	}
+	return vm.push(nativeBoolToBooleanObject(result))
+
+}
+
+// nativeBoolToBooleanObject 将布尔值转换为布尔对象
+func nativeBoolToBooleanObject(input bool) object.Object {
+	if input {
+		return True
+	}
+	return False
+}
+
+// executeBangOperator 执行逻辑非操作
+func (vm *VM) executeBangOperator() error {
+	operand := vm.pop()
+	switch operand {
+	case True:
+		return vm.push(False)
+	case False:
+		return vm.push(True)
+	default:
+		return vm.push(False)
+	}
+}
+
+// executeMinusOperator 执行负号操作
+func (vm *VM) executeMinusOperator() error {
+	operand := vm.pop()
+	if operand.Type() != object.INTEGER {
+		return fmt.Errorf("unsupported type for negation: %s", operand.Type())
+	}
+	value := operand.(*object.Integer).Value
+	return vm.push(&object.Integer{Value: -value})
 }
