@@ -128,6 +128,15 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpArray:
+			arrLen := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+			elements := vm.buildArray(vm.sp-arrLen, vm.sp)
+			vm.sp = vm.sp - arrLen
+			err := vm.push(elements)
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unknown opcode: %d", op)
 		}
@@ -163,8 +172,11 @@ func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 	left := vm.pop()
 	leftType := left.Type()
 	rightType := right.Type()
-	if leftType == object.INTEGER && rightType == object.INTEGER {
+	switch {
+	case leftType == object.INTEGER && rightType == object.INTEGER:
 		return vm.executeBinaryIntegerOperation(op, left, right)
+	case leftType == object.STRING && rightType == object.STRING:
+		return vm.executeBinaryStringOperation(op, left, right)
 	}
 	return fmt.Errorf("unsupported types for binary operation: %s %s", leftType, rightType)
 }
@@ -187,6 +199,16 @@ func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.O
 		return fmt.Errorf("unknown operator: %c", op)
 	}
 	return vm.push(&object.Integer{Value: result})
+}
+
+// executeBinaryStringOperation 执行二元字符串操作
+func (vm *VM) executeBinaryStringOperation(op code.Opcode, left, right object.Object) error {
+	if op != code.OpAdd {
+		return fmt.Errorf("unknown operator: %c (%s %s)", op, left.Type(), right.Type())
+	}
+	leftVal := left.(*object.String).Value
+	rightVal := right.(*object.String).Value
+	return vm.push(&object.String{Value: leftVal + rightVal})
 }
 
 // executeComparison 执行比较操作
@@ -270,4 +292,13 @@ func isTruthy(obj object.Object) bool {
 	default:
 		return true
 	}
+}
+
+// buildArray 从栈中构建一个数组对象
+func (vm *VM) buildArray(startIndex, endIndex int) object.Object {
+	elements := make([]object.Object, endIndex-startIndex)
+	for i := startIndex; i < endIndex; i++ {
+		elements[i-startIndex] = vm.stack[i]
+	}
+	return &object.Array{Elements: elements}
 }
