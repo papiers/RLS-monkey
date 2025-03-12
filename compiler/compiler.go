@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"sort"
 
 	"monkey/ast"
 	"monkey/code"
@@ -185,6 +186,36 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 		c.emit(code.OpArray, len(n.Elements))
+	case *ast.HashLiteral:
+		var keys []ast.Expression
+		for k := range n.Pairs {
+			keys = append(keys, k)
+		}
+		// 对键进行排序，以便在哈希表中保持一致的顺序
+		sort.Slice(keys, func(i, j int) bool {
+			return keys[i].String() < keys[j].String()
+		})
+		for _, v := range keys {
+			err := c.Compile(v)
+			if err != nil {
+				return err
+			}
+			err = c.Compile(n.Pairs[v])
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(code.OpHash, len(n.Pairs)*2)
+	case *ast.IndexExpression:
+		err := c.Compile(n.Left)
+		if err != nil {
+			return err
+		}
+		err = c.Compile(n.Index)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpIndex)
 	}
 	return nil
 }

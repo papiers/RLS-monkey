@@ -137,6 +137,25 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpHash:
+			numElements := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			hash, err := vm.buildHash(vm.sp-int(numElements), vm.sp)
+			if err != nil {
+				return err
+			}
+			vm.sp = vm.sp - int(numElements)
+			err = vm.push(hash)
+			if err != nil {
+				return err
+			}
+		case code.OpIndex:
+			index := vm.pop()
+			left := vm.pop()
+			err := vm.executeIndexExpression(left, index)
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unknown opcode: %d", op)
 		}
@@ -301,4 +320,58 @@ func (vm *VM) buildArray(startIndex, endIndex int) object.Object {
 		elements[i-startIndex] = vm.stack[i]
 	}
 	return &object.Array{Elements: elements}
+}
+
+// buildHash 从栈中构建一个哈希对象
+func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
+	hashedPairs := make(map[object.HashKey]object.HashPair)
+	for i := startIndex; i < endIndex; i += 2 {
+		key := vm.stack[i]
+		value := vm.stack[i+1]
+		hashedKey, ok := key.(object.Hashable)
+		if !ok {
+			return nil, fmt.Errorf("unusable as hash key: %s", key.Type())
+		}
+		hashedPairs[hashedKey.HashKey()] = object.HashPair{Key: key, Value: value}
+	}
+	return &object.Hash{Pairs: hashedPairs}, nil
+}
+
+// executeIndexExpression 执行索引表达式
+func (vm *VM) executeIndexExpression(left, index object.Object) error {
+	switch {
+	case left.Type() == object.ARRAY && index.Type() == object.INTEGER:
+		return vm.executeArrayIndex(left, index)
+	case left.Type() == object.HASH:
+		return vm.executeHashIndex(left, index)
+	default:
+		return fmt.Errorf("index operator not supported: %s", left.Type())
+	}
+}
+
+// executeArrayIndex 执行数组索引
+func (vm *VM) executeArrayIndex(array, index object.Object) error {
+	arrayObject := array.(*object.Array)
+	idx := index.(*object.Integer).Value
+	if idx < 0 || idx > int64(len(arrayObject.Elements)-1) {
+		return vm.push(Null)
+	}
+	return vm.push(arrayObject.Elements[idx])
+}
+
+// executeHashIndex 执行哈希索引
+func (vm *VM) executeHashIndex(hash, index object.Object) error {
+	hashObject := hash.(*object.Hash)
+
+	key, ok := index.(object.Hashable)
+	if !ok {
+		return fmt.Errorf("unusable as hash key: %s", index.Type())
+	}
+
+	pair, ok := hashObject.Pairs[key.HashKey()]
+	if !ok {
+		return vm.push(Null)
+	}
+
+	return vm.push(pair.Value)
 }
