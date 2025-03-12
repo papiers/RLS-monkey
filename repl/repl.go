@@ -21,6 +21,10 @@ const elephant = `
 func StartNew(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 
+	var constants []object.Object
+	globals := make([]object.Object, vm.GlobalsSize)
+	symbolTable := compiler.NewSymbolTable()
+
 	for {
 		_, err := fmt.Fprintf(out, prompt)
 		if err != nil {
@@ -38,13 +42,16 @@ func StartNew(in io.Reader, out io.Writer) {
 			printParserErrors(out, p.Errors())
 			continue
 		}
-		comp := compiler.New()
+		comp := compiler.NewWithState(symbolTable, constants)
 		err = comp.Compile(program)
 		if err != nil {
 			_, _ = fmt.Fprintf(out, "Compiler error: %s\n", err)
 			continue
 		}
-		machine := vm.New(comp.Bytecode())
+
+		code := comp.Bytecode()
+		constants = code.Constants
+		machine := vm.NewWithGlobalsStore(code, globals)
 		err = machine.Run()
 		if err != nil {
 			_, _ = fmt.Fprintf(out, "VM error: %s\n", err)

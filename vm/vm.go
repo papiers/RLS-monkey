@@ -8,7 +8,10 @@ import (
 	"monkey/object"
 )
 
-const StackSize = 2048
+const (
+	StackSize   = 2048
+	GlobalsSize = 65535
+)
 
 var (
 	True  = &object.Boolean{Value: true}
@@ -20,8 +23,9 @@ type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
 
-	stack []object.Object
-	sp    int // 始终指向栈中下一个空闲位置，栈顶元素为 stack[sp-1]
+	stack   []object.Object
+	sp      int // 始终指向栈中下一个空闲位置，栈顶元素为 stack[sp-1]
+	globals []object.Object
 }
 
 // New 创建一个新的虚拟机
@@ -31,6 +35,18 @@ func New(bytecode *compiler.Bytecode) *VM {
 		constants:    bytecode.Constants,
 		stack:        make([]object.Object, StackSize),
 		sp:           0,
+		globals:      make([]object.Object, GlobalsSize),
+	}
+}
+
+// NewWithGlobalsStore 创建一个新的虚拟机，并允许自定义全局变量存储
+func NewWithGlobalsStore(bytecode *compiler.Bytecode, globals []object.Object) *VM {
+	return &VM{
+		instructions: bytecode.Instructions,
+		constants:    bytecode.Constants,
+		stack:        make([]object.Object, StackSize),
+		sp:           0,
+		globals:      globals,
 	}
 }
 
@@ -98,6 +114,17 @@ func (vm *VM) Run() error {
 			}
 		case code.OpNull:
 			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+		case code.OpSetGlobal:
+			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			vm.globals[globalIndex] = vm.pop()
+		case code.OpGetGlobal:
+			index := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			err := vm.push(vm.globals[index])
 			if err != nil {
 				return err
 			}
