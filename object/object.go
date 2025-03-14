@@ -6,19 +6,21 @@ import (
 	"strings"
 
 	"monkey/ast"
+	"monkey/code"
 )
 
 const (
-	INTEGER      TypeObject = "INTEGER"
-	BOOLEAN      TypeObject = "BOOLEAN"
-	NULL         TypeObject = "NULL"
-	RETURN_VALUE TypeObject = "RETURN_VALUE"
-	ERROR        TypeObject = "ERROR"
-	FUNCTION     TypeObject = "FUNCTION"
-	STRING       TypeObject = "STRING"
-	BUILTIN      TypeObject = "BUILTIN"
-	ARRAY        TypeObject = "ARRAY"
-	HASH         TypeObject = "HASH"
+	INTEGER           TypeObject = "INTEGER"
+	BOOLEAN           TypeObject = "BOOLEAN"
+	NULL              TypeObject = "NULL"
+	RETURN_VALUE      TypeObject = "RETURN_VALUE"
+	ERROR             TypeObject = "ERROR"
+	FUNCTION          TypeObject = "FUNCTION"
+	STRING            TypeObject = "STRING"
+	BUILTIN           TypeObject = "BUILTIN"
+	ARRAY             TypeObject = "ARRAY"
+	HASH              TypeObject = "HASH"
+	COMPILED_FUNCTION TypeObject = "COMPILED_FUNCTION"
 )
 
 // TypeObject 对象类型
@@ -253,4 +255,20 @@ func (h *Hash) Inspect() string {
 	out.WriteString(strings.Join(pairs, ", "))
 	out.WriteString("}")
 	return out.String()
+}
+
+// CompiledFunction 编译的函数对象
+type CompiledFunction struct {
+	Instructions code.Instructions
+}
+
+// 定义 Function 对象实现 Object 接口
+var _ Object = (*CompiledFunction)(nil)
+
+// Type 返回对象类型
+func (cf *CompiledFunction) Type() TypeObject { return COMPILED_FUNCTION }
+
+// Inspect 返回对象字符串表示
+func (cf *CompiledFunction) Inspect() string {
+	return fmt.Sprintf("CompiledFunction[%p]", cf)
 }

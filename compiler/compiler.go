@@ -15,23 +15,34 @@ type EmittedInstruction struct {
 	Position int
 }
 
-// Compiler 编译器
-type Compiler struct {
+// CompilationScope 编译作用域
+type CompilationScope struct {
 	instructions        code.Instructions
-	constants           []object.Object
 	lastInstruction     EmittedInstruction
 	previousInstruction EmittedInstruction
-	symbolTable         *SymbolTable
+}
+
+// Compiler 编译器
+type Compiler struct {
+	constants   []object.Object
+	symbolTable *SymbolTable
+	scopes      []CompilationScope
+	scopeIndex  int
 }
 
 // New 创建编译器
 func New() *Compiler {
 	return &Compiler{
-		instructions:        code.Instructions{},
-		constants:           []object.Object{},
-		lastInstruction:     EmittedInstruction{},
-		previousInstruction: EmittedInstruction{},
-		symbolTable:         NewSymbolTable(),
+		constants:   []object.Object{},
+		symbolTable: NewSymbolTable(),
+		scopes: []CompilationScope{
+			{
+				instructions:        code.Instructions{},
+				lastInstruction:     EmittedInstruction{},
+				previousInstruction: EmittedInstruction{},
+			},
+		},
+		scopeIndex: 0,
 	}
 }
 
@@ -134,13 +145,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
-		if c.lastInstructionIsPop() {
+		if c.lastInstructionIs(code.OpPop) {
 			c.removeLastPop()
 		}
 		jumpPos := c.emit(code.OpJump, 9999)
 
 		// 回填else语句开始位置
-		afterConsequencePos := len(c.instructions)
+		afterConsequencePos := len(c.currentInstructions())
 		c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
 
 		if n.Alternative == nil {
@@ -150,12 +161,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 			if err != nil {
 				return err
 			}
-			if c.lastInstructionIsPop() {
+			if c.lastInstructionIs(code.OpPop) {
 				c.removeLastPop()
 			}
 		}
 		// 回填else后语句开始位置
-		afterAlternativePos := len(c.instructions)
+		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpPos, afterAlternativePos)
 
 	case *ast.BlockStatement:
@@ -216,6 +227,32 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		c.emit(code.OpIndex)
+	case *ast.FunctionLiteral:
+		c.enterScope()
+		err := c.Compile(n.Body)
+		if err != nil {
+			return err
+		}
+
+		if c.lastInstructionIs(code.OpPop) {
+			c.replaceLastPopWithReturn()
+		}
+
+		if !c.lastInstructionIs(code.OpReturnValue) {
+			c.emit(code.OpReturn)
+		}
+
+		instructions := c.leaveScope()
+		compiledFn := &object.CompiledFunction{
+			Instructions: instructions,
+		}
+		c.emit(code.OpConstant, c.addConstant(compiledFn))
+	case *ast.ReturnStatement:
+		err := c.Compile(n.ReturnValue)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpReturnValue)
 	}
 	return nil
 }
@@ -236,45 +273,78 @@ func (c *Compiler) emit(op code.Opcode, operand ...int) int {
 
 // addInstruction 添加指令
 func (c *Compiler) addInstruction(ins []byte) int {
-	posNewIns := len(c.instructions)
-	c.instructions = append(c.instructions, ins...)
+	posNewIns := len(c.currentInstructions())
+	c.scopes[c.scopeIndex].instructions = append(c.currentInstructions(), ins...)
 	return posNewIns
 }
 
 // setLastInstruction 设置最后一条指令
 func (c *Compiler) setLastInstruction(op code.Opcode, pos int) {
-	c.previousInstruction = c.lastInstruction
-	c.lastInstruction = EmittedInstruction{op, pos}
+	c.scopes[c.scopeIndex].previousInstruction = c.scopes[c.scopeIndex].lastInstruction
+	c.scopes[c.scopeIndex].lastInstruction = EmittedInstruction{op, pos}
 }
 
-// lastInstructionIsPop 最后一条指令是否为Pop
-func (c *Compiler) lastInstructionIsPop() bool {
-	return c.lastInstruction.OpCode == code.OpPop
+// lastInstructionIsPop 最后一条指令是否为
+func (c *Compiler) lastInstructionIs(op code.Opcode) bool {
+	if len(c.currentInstructions()) == 0 {
+		return false
+	}
+	return c.scopes[c.scopeIndex].lastInstruction.OpCode == op
 }
 
 // removeLastPop 移除最后一条Pop
 func (c *Compiler) removeLastPop() {
-	c.instructions = c.instructions[:c.lastInstruction.Position]
-	c.lastInstruction = c.previousInstruction
+	c.scopes[c.scopeIndex].instructions = c.currentInstructions()[:c.scopes[c.scopeIndex].lastInstruction.Position]
+	c.scopes[c.scopeIndex].lastInstruction = c.scopes[c.scopeIndex].previousInstruction
 }
 
 // replaceInstruction 替换指令
 func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
 	for i, b := range newInstruction {
-		c.instructions[pos+i] = b
+		c.scopes[c.scopeIndex].instructions[pos+i] = b
 	}
 }
 
 // changeOperand 替换操作数
 func (c *Compiler) changeOperand(pos int, operand int) {
-	op := code.Opcode(c.instructions[pos])
+	op := code.Opcode(c.currentInstructions()[pos])
 	c.replaceInstruction(pos, code.Make(op, operand))
+}
+
+// currentInstructions 当前指令
+func (c *Compiler) currentInstructions() code.Instructions {
+	return c.scopes[c.scopeIndex].instructions
+}
+
+// enterScope 进入作用域
+func (c *Compiler) enterScope() {
+	c.scopes = append(c.scopes, CompilationScope{
+		instructions:        code.Instructions{},
+		lastInstruction:     EmittedInstruction{},
+		previousInstruction: EmittedInstruction{},
+	})
+	c.scopeIndex++
+}
+
+// leaveScope 离开作用域
+func (c *Compiler) leaveScope() code.Instructions {
+	ins := c.currentInstructions()
+	c.scopes = c.scopes[:len(c.scopes)-1]
+	c.scopeIndex--
+	return ins
+}
+
+// replaceLastPopWithReturn 替换最后一条Pop为Return
+func (c *Compiler) replaceLastPopWithReturn() {
+	lastIns := c.scopes[c.scopeIndex].lastInstruction
+	c.replaceInstruction(lastIns.Position, code.Make(code.OpReturnValue))
+	c.scopes[c.scopeIndex].lastInstruction.OpCode = code.OpReturnValue
 }
 
 // Bytecode 产生字节码
 func (c *Compiler) Bytecode() *Bytecode {
 	return &Bytecode{
-		Instructions: c.instructions,
+		Instructions: c.currentInstructions(),
 		Constants:    c.constants,
 	}
 }
