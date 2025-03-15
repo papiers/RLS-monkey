@@ -11,6 +11,7 @@ import (
 const (
 	StackSize   = 2048
 	GlobalsSize = 65535
+	MaxFrames   = 1024
 )
 
 var (
@@ -20,52 +21,56 @@ var (
 )
 
 type VM struct {
-	constants    []object.Object
-	instructions code.Instructions
-
-	stack   []object.Object
-	sp      int // 始终指向栈中下一个空闲位置，栈顶元素为 stack[sp-1]
-	globals []object.Object
+	constants   []object.Object
+	stack       []object.Object
+	sp          int // 始终指向栈中下一个空闲位置，栈顶元素为 stack[sp-1]
+	globals     []object.Object
+	frames      []Frame
+	framesIndex int
 }
 
 // New 创建一个新的虚拟机
 func New(bytecode *compiler.Bytecode) *VM {
+	mainFn := &object.CompiledFunction{
+		Instructions: bytecode.Instructions,
+	}
+	mainFrame := NewFrame(mainFn)
+	frames := make([]Frame, MaxFrames)
+	frames[0] = mainFrame
 	return &VM{
-		instructions: bytecode.Instructions,
-		constants:    bytecode.Constants,
-		stack:        make([]object.Object, StackSize),
-		sp:           0,
-		globals:      make([]object.Object, GlobalsSize),
+		constants:   bytecode.Constants,
+		stack:       make([]object.Object, StackSize),
+		sp:          0,
+		globals:     make([]object.Object, GlobalsSize),
+		frames:      frames,
+		framesIndex: 1,
 	}
 }
 
 // NewWithGlobalsStore 创建一个新的虚拟机，并允许自定义全局变量存储
 func NewWithGlobalsStore(bytecode *compiler.Bytecode, globals []object.Object) *VM {
 	return &VM{
-		instructions: bytecode.Instructions,
-		constants:    bytecode.Constants,
-		stack:        make([]object.Object, StackSize),
-		sp:           0,
-		globals:      globals,
+		constants: bytecode.Constants,
+		stack:     make([]object.Object, StackSize),
+		sp:        0,
+		globals:   globals,
 	}
-}
-
-// StackTop 返回栈顶元素
-func (vm *VM) StackTop() object.Object {
-	if vm.sp > 0 {
-		return vm.stack[vm.sp-1]
-	}
-	return nil
 }
 
 // Run 执行字节码
 func (vm *VM) Run() error {
-	for ip := 0; ip < len(vm.instructions); ip++ {
-		op := code.Opcode(vm.instructions[ip])
+	var ip int
+	var ins code.Instructions
+	var op code.Opcode
+	for vm.currentFrame().ip < len(vm.currentFrame().Instructions())-1 {
+		vm.currentFrame().ip++
+		ip = vm.currentFrame().ip
+		ins = vm.currentFrame().Instructions()
+		op = code.Opcode(ins[ip])
 		switch op {
 		case code.OpConstant:
-			constIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			constIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 			err := vm.push(vm.constants[constIndex])
 			if err != nil {
 				return err
@@ -103,14 +108,14 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpJump:
-			pos := code.ReadUint16(vm.instructions[ip+1:])
-			ip = int(pos - 1)
+			pos := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip = int(pos - 1)
 		case code.OpJumpNotTruthy:
-			pos := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			pos := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 			condition := vm.pop()
 			if !isTruthy(condition) {
-				ip = int(pos - 1)
+				vm.currentFrame().ip = int(pos - 1)
 			}
 		case code.OpNull:
 			err := vm.push(Null)
@@ -118,19 +123,19 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpSetGlobal:
-			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			globalIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 			vm.globals[globalIndex] = vm.pop()
 		case code.OpGetGlobal:
-			index := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			index := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 			err := vm.push(vm.globals[index])
 			if err != nil {
 				return err
 			}
 		case code.OpArray:
-			arrLen := int(code.ReadUint16(vm.instructions[ip+1:]))
-			ip += 2
+			arrLen := int(code.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
 			elements := vm.buildArray(vm.sp-arrLen, vm.sp)
 			vm.sp = vm.sp - arrLen
 			err := vm.push(elements)
@@ -138,8 +143,8 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpHash:
-			numElements := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			numElements := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 			hash, err := vm.buildHash(vm.sp-int(numElements), vm.sp)
 			if err != nil {
 				return err
@@ -159,6 +164,31 @@ func (vm *VM) Run() error {
 		default:
 			return fmt.Errorf("unknown opcode: %d", op)
 		}
+	}
+	return nil
+}
+
+// currentFrame 返回当前帧
+func (vm *VM) currentFrame() *Frame {
+	return &vm.frames[vm.framesIndex-1]
+}
+
+// pushFrame 压入新的帧
+func (vm *VM) pushFrame(frame Frame) {
+	vm.frames[vm.framesIndex] = frame
+	vm.framesIndex++
+}
+
+// popFrame 弹出当前帧
+func (vm *VM) popFrame() *Frame {
+	vm.framesIndex--
+	return &vm.frames[vm.framesIndex]
+}
+
+// StackTop 返回栈顶元素
+func (vm *VM) StackTop() object.Object {
+	if vm.sp > 0 {
+		return vm.stack[vm.sp-1]
 	}
 	return nil
 }
