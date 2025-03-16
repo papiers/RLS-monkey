@@ -259,8 +259,9 @@ func (h *Hash) Inspect() string {
 
 // CompiledFunction 编译的函数对象
 type CompiledFunction struct {
-	Instructions code.Instructions
-	NumLocals    int
+	Instructions  code.Instructions
+	NumLocals     int
+	NumParameters int
 }
 
 // 定义 Function 对象实现 Object 接口
