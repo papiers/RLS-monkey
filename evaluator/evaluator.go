@@ -310,7 +310,10 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 	}
 
 	if builtin, ok := fn.(*object.Builtin); ok {
-		return builtin.Fn(args...)
+		if result := builtin.Fn(args...); result != nil {
+			return result
+		}
+		return Null
 	}
 
 	return &object.Error{Message: "not a function"}
