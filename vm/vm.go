@@ -49,12 +49,9 @@ func New(bytecode *compiler.Bytecode) *VM {
 
 // NewWithGlobalsStore 创建一个新的虚拟机，并允许自定义全局变量存储
 func NewWithGlobalsStore(bytecode *compiler.Bytecode, globals []object.Object) *VM {
-	return &VM{
-		constants: bytecode.Constants,
-		stack:     make([]object.Object, StackSize),
-		sp:        0,
-		globals:   globals,
-	}
+	vm := New(bytecode)
+	vm.globals = globals
+	return vm
 }
 
 // Run 执行字节码
@@ -71,6 +68,7 @@ func (vm *VM) Run() error {
 		case code.OpConstant:
 			constIndex := code.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
+
 			err := vm.push(vm.constants[constIndex])
 			if err != nil {
 				return err
@@ -113,6 +111,7 @@ func (vm *VM) Run() error {
 		case code.OpJumpNotTruthy:
 			pos := code.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
+
 			condition := vm.pop()
 			if !isTruthy(condition) {
 				vm.currentFrame().ip = int(pos - 1)
@@ -125,6 +124,7 @@ func (vm *VM) Run() error {
 		case code.OpSetGlobal:
 			globalIndex := code.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
+
 			vm.globals[globalIndex] = vm.pop()
 		case code.OpGetGlobal:
 			index := code.ReadUint16(ins[ip+1:])
@@ -136,6 +136,7 @@ func (vm *VM) Run() error {
 		case code.OpArray:
 			arrLen := int(code.ReadUint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
+
 			elements := vm.buildArray(vm.sp-arrLen, vm.sp)
 			vm.sp = vm.sp - arrLen
 			err := vm.push(elements)
@@ -145,6 +146,7 @@ func (vm *VM) Run() error {
 		case code.OpHash:
 			numElements := code.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
+
 			hash, err := vm.buildHash(vm.sp-int(numElements), vm.sp)
 			if err != nil {
 				return err
@@ -164,7 +166,8 @@ func (vm *VM) Run() error {
 		case code.OpCall:
 			numArgs := code.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
-			err := vm.callFunction(int(numArgs))
+
+			err := vm.executeCall(int(numArgs))
 			if err != nil {
 				return err
 			}
@@ -186,16 +189,28 @@ func (vm *VM) Run() error {
 		case code.OpSetLocal:
 			localIndex := code.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
+
 			frame := vm.currentFrame()
 			vm.stack[frame.basePointer+int(localIndex)] = vm.pop()
 		case code.OpGetLocal:
 			localIndex := code.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
+
 			frame := vm.currentFrame()
 			err := vm.push(vm.stack[frame.basePointer+int(localIndex)])
 			if err != nil {
 				return err
 			}
+		case code.OpGetBuiltin:
+			builtinIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			definition := object.Builtins[builtinIndex]
+			err := vm.push(definition.Builtin)
+			if err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("unknown opcode: %d", op)
 		}
@@ -441,17 +456,41 @@ func (vm *VM) executeHashIndex(hash, index object.Object) error {
 	return vm.push(pair.Value)
 }
 
-// callFunction 调用函数
-func (vm *VM) callFunction(numArgs int) error {
-	fn, ok := vm.stack[vm.sp-1-numArgs].(*object.CompiledFunction)
-	if !ok {
-		return fmt.Errorf("calling non-function")
+// executeCall 执行函数调用
+func (vm *VM) executeCall(numArgs int) error {
+	callee := vm.stack[vm.sp-1-numArgs]
+	switch callee := callee.(type) {
+	case *object.CompiledFunction:
+		return vm.callFunction(callee, numArgs)
+	case *object.Builtin:
+		return vm.callBuiltin(callee, numArgs)
+	default:
+		return fmt.Errorf("calling %s is not supported", callee.Type())
 	}
+}
+
+// callFunction 调用函数
+func (vm *VM) callFunction(fn *object.CompiledFunction, numArgs int) error {
 	if numArgs != fn.NumParameters {
 		return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
 	}
 	frame := NewFrame(fn, vm.sp-numArgs)
 	vm.pushFrame(frame)
 	vm.sp = frame.basePointer + fn.NumLocals
+	return nil
+}
+
+// callBuiltin 调用内置函数
+func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
+	args := vm.stack[vm.sp-numArgs : vm.sp]
+	result := builtin.Fn(args...)
+	vm.sp -= numArgs + 1
+	if result == nil {
+		result = Null
+	}
+	err := vm.push(result)
+	if err != nil {
+		return err
+	}
 	return nil
 }

@@ -139,7 +139,7 @@ func TestIntegerArithmetic(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, testCases)
+	runCompilerTests(t, testCases)
 }
 
 func TestBooleanArithmetic(t *testing.T) {
@@ -170,7 +170,7 @@ func TestBooleanArithmetic(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, testCases)
+	runCompilerTests(t, testCases)
 }
 
 func TestConditional(t *testing.T) {
@@ -204,7 +204,7 @@ func TestConditional(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, testCases)
+	runCompilerTests(t, testCases)
 }
 
 func TestCompileGlobalLetStatements(t *testing.T) {
@@ -252,7 +252,7 @@ func TestCompileGlobalLetStatements(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
 func TestStringExpressions(t *testing.T) {
@@ -276,7 +276,7 @@ func TestStringExpressions(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
 func TestArrayLiterals(t *testing.T) {
@@ -318,7 +318,7 @@ func TestArrayLiterals(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
 func TestHashLiterals(t *testing.T) {
@@ -362,7 +362,7 @@ func TestHashLiterals(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
 func TestIndexExpressions(t *testing.T) {
@@ -397,7 +397,7 @@ func TestIndexExpressions(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
 func TestFunctions(t *testing.T) {
@@ -466,7 +466,7 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 	}
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
 func TestCompilerScopes(t *testing.T) {
@@ -607,7 +607,7 @@ func TestFunctionCalls(t *testing.T) {
 		// 	},
 		// },
 	}
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
 func TestLetStatementScopes(t *testing.T) {
@@ -681,11 +681,51 @@ func TestLetStatementScopes(t *testing.T) {
 		},
 	}
 
-	runCompilerTest(t, tests)
+	runCompilerTests(t, tests)
 }
 
-// runCompilerTest 运行编译器测试用例
-func runCompilerTest(t *testing.T, tests []compilerTestCase) {
+func TestBuiltins(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input: `
+			len([]);
+			push([], 1);
+			`,
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpGetBuiltin, 0),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpCall, 1),
+				code.Make(code.OpPop),
+				code.Make(code.OpGetBuiltin, 5),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpCall, 2),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: `fn() { len([]) }`,
+			expectedConstants: []interface{}{
+				[]code.Instructions{
+					code.Make(code.OpGetBuiltin, 0),
+					code.Make(code.OpArray, 0),
+					code.Make(code.OpCall, 1),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+
+	runCompilerTests(t, tests)
+}
+
+// runCompilerTests 运行编译器测试用例
+func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 	for _, tt := range tests {
 		program := parse(tt.input)

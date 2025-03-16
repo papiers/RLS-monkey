@@ -24,6 +24,9 @@ func StartNew(in io.Reader, out io.Writer) {
 	var constants []object.Object
 	globals := make([]object.Object, vm.GlobalsSize)
 	symbolTable := compiler.NewSymbolTable()
+	for i, v := range object.Builtins {
+		symbolTable.DefineBuiltin(i, v.Name)
+	}
 
 	for {
 		_, err := fmt.Fprintf(out, prompt)

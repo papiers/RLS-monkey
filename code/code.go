@@ -36,6 +36,7 @@ const (
 	OpReturn
 	OpGetLocal
 	OpSetLocal
+	OpGetBuiltin
 )
 
 // Definition 定义
@@ -71,6 +72,7 @@ var definitions = map[Opcode]*Definition{
 	OpReturn:        {"OpReturn", []int{}},
 	OpGetLocal:      {"OpGetLocal", []int{1}},
 	OpSetLocal:      {"OpSetLocal", []int{1}},
+	OpGetBuiltin:    {"OpGetBuiltin", []int{1}},
 }
 
 // Lookup 查找

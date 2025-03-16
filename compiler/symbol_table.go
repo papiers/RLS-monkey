@@ -4,8 +4,9 @@ package compiler
 type SymbolScope string
 
 const (
-	GlobalScope SymbolScope = "GLOBAL"
-	LocalScope  SymbolScope = "LOCAL"
+	GlobalScope  SymbolScope = "GLOBAL"
+	LocalScope   SymbolScope = "LOCAL"
+	BuiltinScope SymbolScope = "BUILTIN"
 )
 
 // Symbol 符号
@@ -60,4 +61,15 @@ func (st *SymbolTable) Resolve(name string) (Symbol, bool) {
 		symbol, ok = st.Outer.Resolve(name)
 	}
 	return symbol, ok
+}
+
+// DefineBuiltin 定义内置符号
+func (st *SymbolTable) DefineBuiltin(index int, name string) Symbol {
+	symbol := Symbol{
+		Name:  name,
+		Index: index,
+		Scope: BuiltinScope,
+	}
+	st.store[name] = symbol
+	return symbol
 }
