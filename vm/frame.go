@@ -6,15 +6,17 @@ import (
 )
 
 type Frame struct {
-	fn *object.CompiledFunction
-	ip int
+	fn          *object.CompiledFunction
+	ip          int
+	basePointer int
 }
 
 // NewFrame 创建一个新的Frame
-func NewFrame(fn *object.CompiledFunction) Frame {
+func NewFrame(fn *object.CompiledFunction, basePointer int) Frame {
 	return Frame{
-		fn: fn,
-		ip: -1,
+		fn:          fn,
+		ip:          -1,
+		basePointer: basePointer,
 	}
 }
 

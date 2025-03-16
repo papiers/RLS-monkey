@@ -1,6 +1,8 @@
 package lexer
 
-import "monkey/token"
+import (
+	"monkey/token"
+)
 
 type Lexer struct {
 	input        string
@@ -111,7 +113,7 @@ func (l *Lexer) NextToken() token.Token {
 // readIdentifier 读取标识符字符
 func (l *Lexer) readIdentifier() string {
 	position := l.position
-	for isLetter(l.ch) {
+	for isIdentContinue(l.ch) {
 		l.readChar()
 	}
 	return l.input[position:l.position]
@@ -141,6 +143,11 @@ func isLetter(ch byte) bool {
 // isDigit 判断一个字节是否为数字字符
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
+}
+
+// isIdentContinue 判断一个字节是否为标识符后续字符：字母、数字或下划线
+func isIdentContinue(ch byte) bool {
+	return isLetter(ch) || isDigit(ch)
 }
 
 // readString 读取字符串字符

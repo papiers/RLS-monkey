@@ -182,13 +182,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		symbol := c.symbolTable.Define(n.Name.Value)
-		c.emit(code.OpSetGlobal, symbol.Index)
+		if symbol.Scope == GlobalScope {
+			c.emit(code.OpSetGlobal, symbol.Index)
+		} else {
+			c.emit(code.OpSetLocal, symbol.Index)
+		}
 	case *ast.Identifier:
 		symbol, ok := c.symbolTable.Resolve(n.Value)
 		if !ok {
 			return fmt.Errorf("identifier not found: %s", n.Value)
 		}
-		c.emit(code.OpGetGlobal, symbol.Index)
+		if symbol.Scope == GlobalScope {
+			c.emit(code.OpGetGlobal, symbol.Index)
+		} else {
+			c.emit(code.OpGetLocal, symbol.Index)
+		}
 	case *ast.ArrayLiteral:
 		for _, e := range n.Elements {
 			err := c.Compile(e)
@@ -242,9 +250,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpReturn)
 		}
 
+		numLocals := c.symbolTable.numDefinitions
 		instructions := c.leaveScope()
 		compiledFn := &object.CompiledFunction{
 			Instructions: instructions,
+			NumLocals:    numLocals,
 		}
 		c.emit(code.OpConstant, c.addConstant(compiledFn))
 	case *ast.ReturnStatement:
@@ -330,6 +340,7 @@ func (c *Compiler) enterScope() {
 		previousInstruction: EmittedInstruction{},
 	})
 	c.scopeIndex++
+	c.symbolTable = NewEnclosedSymbolTable(c.symbolTable)
 }
 
 // leaveScope 离开作用域
@@ -337,6 +348,7 @@ func (c *Compiler) leaveScope() code.Instructions {
 	ins := c.currentInstructions()
 	c.scopes = c.scopes[:len(c.scopes)-1]
 	c.scopeIndex--
+	c.symbolTable = c.symbolTable.Outer
 	return ins
 }
 

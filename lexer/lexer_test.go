@@ -134,3 +134,72 @@ func TestNextToken(t *testing.T) {
 		}
 	}
 }
+
+func TestIdent(t *testing.T) {
+	input := `
+	let five1 = 5;
+	let _tmp = 5;
+	let item2_count = 5;
+	let 123var = 5;
+	let a_2_3 = 5;
+	let _ = 5;
+	let x0 = 5;
+	`
+	tests := []struct {
+		expectedType    token.TypeToken
+		expectedLiteral string
+	}{
+		{token.LET, "let"},
+		{token.IDENT, "five1"},
+		{token.ASSIGN, "="},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+
+		{token.LET, "let"},
+		{token.IDENT, "_tmp"},
+		{token.ASSIGN, "="},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+
+		{token.LET, "let"},
+		{token.IDENT, "item2_count"},
+		{token.ASSIGN, "="},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+
+		{token.LET, "let"},
+		{token.INT, "123"},
+		{token.IDENT, "var"},
+		{token.ASSIGN, "="},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+
+		{token.LET, "let"},
+		{token.IDENT, "a_2_3"},
+		{token.ASSIGN, "="},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+
+		{token.LET, "let"},
+		{token.IDENT, "_"},
+		{token.ASSIGN, "="},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+
+		{token.LET, "let"},
+		{token.IDENT, "x0"},
+		{token.ASSIGN, "="},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+	}
+	l := New(input)
+	for i, tt := range tests {
+		tok := l.NextToken()
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - tokentype wrong, expected=%q[%q] got=%q[%q]", i, tt.expectedType, tt.expectedLiteral, tok.Type, tok.Literal)
+		}
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d] - literal wrong, expected=%q got=%q", i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}

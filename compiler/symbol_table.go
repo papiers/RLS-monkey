@@ -17,6 +17,8 @@ type Symbol struct {
 
 // SymbolTable 符号表
 type SymbolTable struct {
+	Outer *SymbolTable
+
 	store          map[string]Symbol
 	numDefinitions int
 }
@@ -28,12 +30,23 @@ func NewSymbolTable() *SymbolTable {
 	}
 }
 
+// NewEnclosedSymbolTable 创建封闭的符号表
+func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
+	s := NewSymbolTable()
+	s.Outer = outer
+	return s
+}
+
 // Define 定义符号
 func (st *SymbolTable) Define(name string) Symbol {
 	symbol := Symbol{
 		Name:  name,
-		Scope: GlobalScope,
 		Index: st.numDefinitions,
+	}
+	if st.Outer == nil {
+		symbol.Scope = GlobalScope
+	} else {
+		symbol.Scope = LocalScope
 	}
 	st.store[name] = symbol
 	st.numDefinitions++
@@ -43,5 +56,8 @@ func (st *SymbolTable) Define(name string) Symbol {
 // Resolve 解析符号
 func (st *SymbolTable) Resolve(name string) (Symbol, bool) {
 	symbol, ok := st.store[name]
+	if !ok && st.Outer != nil {
+		symbol, ok = st.Outer.Resolve(name)
+	}
 	return symbol, ok
 }

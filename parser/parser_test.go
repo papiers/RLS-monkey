@@ -10,7 +10,7 @@ import (
 
 func TestStatement(t *testing.T) {
 	input := `
-		let x = 5;
+		let x1 = 5;
 		let y = 10;
 		let foobar = 838383;
 		return 5 + y * 10;
@@ -25,14 +25,14 @@ func TestStatement(t *testing.T) {
 		t.Fatalf("ParseProgram() returned nil")
 	}
 	if len(program.Statements) != 6 {
-		t.Fatalf("program.Statements does not contain 3 statements. got=%d\n", len(program.Statements))
+		t.Fatalf("program.Statements does not contain 6 statements. got=%d\n", len(program.Statements))
 	}
 
 	tests := []struct {
 		expectedIdentifier string
 		expectedVal        string
 	}{
-		{"x", "5"},
+		{"x1", "5"},
 		{"y", "10"},
 		{"foobar", "838383"},
 		{"", ""},
