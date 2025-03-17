@@ -10,17 +10,18 @@ import (
 )
 
 const (
-	INTEGER           TypeObject = "INTEGER"
-	BOOLEAN           TypeObject = "BOOLEAN"
-	NULL              TypeObject = "NULL"
-	RETURN_VALUE      TypeObject = "RETURN_VALUE"
-	ERROR             TypeObject = "ERROR"
-	FUNCTION          TypeObject = "FUNCTION"
-	STRING            TypeObject = "STRING"
-	BUILTIN           TypeObject = "BUILTIN"
-	ARRAY             TypeObject = "ARRAY"
-	HASH              TypeObject = "HASH"
-	COMPILED_FUNCTION TypeObject = "COMPILED_FUNCTION"
+	IntegerObj          TypeObject = "INTEGER"
+	BooleanObj          TypeObject = "BOOLEAN"
+	NullObj             TypeObject = "NULL"
+	ReturnValueObj      TypeObject = "RETURN_VALUE"
+	ErrorObj            TypeObject = "ERROR"
+	FunctionObj         TypeObject = "FUNCTION"
+	StringObj           TypeObject = "STRING"
+	builtinObj          TypeObject = "BUILTIN"
+	ArrayObj            TypeObject = "ARRAY"
+	HashObj             TypeObject = "HASH"
+	CompliedFunctionObj TypeObject = "COMPILED_FUNCTION"
+	ClosureObj          TypeObject = "CLOSURE"
 )
 
 // TypeObject 对象类型
@@ -55,7 +56,7 @@ var _ Object = (*Integer)(nil)
 var _ Hashable = (*Integer)(nil)
 
 // Type 返回对象类型
-func (i *Integer) Type() TypeObject { return INTEGER }
+func (i *Integer) Type() TypeObject { return IntegerObj }
 
 // Inspect 返回对象字符串表示
 func (i *Integer) Inspect() string { return fmt.Sprintf("%d", i.Value) }
@@ -77,7 +78,7 @@ var _ Object = (*Boolean)(nil)
 var _ Hashable = (*Boolean)(nil)
 
 // Type 返回对象类型
-func (b *Boolean) Type() TypeObject { return BOOLEAN }
+func (b *Boolean) Type() TypeObject { return BooleanObj }
 
 // Inspect 返回对象字符串表示
 func (b *Boolean) Inspect() string { return fmt.Sprintf("%t", b.Value) }
@@ -100,7 +101,7 @@ type Null struct{}
 var _ Object = (*Null)(nil)
 
 // Type 返回对象类型
-func (*Null) Type() TypeObject { return NULL }
+func (*Null) Type() TypeObject { return NullObj }
 
 // Inspect 返回对象字符串表示
 func (*Null) Inspect() string { return "null" }
@@ -114,7 +115,7 @@ type ReturnValue struct {
 var _ Object = (*ReturnValue)(nil)
 
 // Type 返回对象类型
-func (rv *ReturnValue) Type() TypeObject { return RETURN_VALUE }
+func (rv *ReturnValue) Type() TypeObject { return ReturnValueObj }
 
 // Inspect 返回对象字符串表示
 func (rv *ReturnValue) Inspect() string { return rv.Value.Inspect() }
@@ -128,10 +129,10 @@ type Error struct {
 var _ Object = (*Error)(nil)
 
 // Type 返回对象类型
-func (e *Error) Type() TypeObject { return ERROR }
+func (e *Error) Type() TypeObject { return ErrorObj }
 
 // Inspect 返回对象字符串表示
-func (e *Error) Inspect() string { return "ERROR: " + e.Message }
+func (e *Error) Inspect() string { return "ErrorObj: " + e.Message }
 
 // Function 函数对象
 type Function struct {
@@ -144,7 +145,7 @@ type Function struct {
 var _ Object = (*Function)(nil)
 
 // Type 返回对象类型
-func (f *Function) Type() TypeObject { return FUNCTION }
+func (f *Function) Type() TypeObject { return FunctionObj }
 
 // Inspect 返回对象字符串表示
 func (f *Function) Inspect() string {
@@ -174,7 +175,7 @@ var _ Object = (*String)(nil)
 var _ Hashable = (*String)(nil)
 
 // Type 返回对象类型
-func (s *String) Type() TypeObject { return STRING }
+func (s *String) Type() TypeObject { return StringObj }
 
 // Inspect 返回对象字符串表示
 func (s *String) Inspect() string { return s.Value }
@@ -198,7 +199,7 @@ type Builtin struct {
 var _ Object = (*Builtin)(nil)
 
 // Type 返回对象类型
-func (b *Builtin) Type() TypeObject { return BUILTIN }
+func (b *Builtin) Type() TypeObject { return builtinObj }
 
 // Inspect 返回对象字符串表示
 func (b *Builtin) Inspect() string { return "builtin function" }
@@ -212,7 +213,7 @@ type Array struct {
 var _ Object = (*Array)(nil)
 
 // Type 返回对象类型
-func (a *Array) Type() TypeObject { return ARRAY }
+func (a *Array) Type() TypeObject { return ArrayObj }
 
 // Inspect 返回对象字符串表示
 func (a *Array) Inspect() string {
@@ -242,7 +243,7 @@ type Hash struct {
 var _ Object = (*Hash)(nil)
 
 // Type 返回对象类型
-func (h *Hash) Type() TypeObject { return HASH }
+func (h *Hash) Type() TypeObject { return HashObj }
 
 // Inspect 返回对象字符串表示
 func (h *Hash) Inspect() string {
@@ -268,7 +269,7 @@ type CompiledFunction struct {
 var _ Object = (*CompiledFunction)(nil)
 
 // Type 返回对象类型
-func (cf *CompiledFunction) Type() TypeObject { return COMPILED_FUNCTION }
+func (cf *CompiledFunction) Type() TypeObject { return CompliedFunctionObj }
 
 // Inspect 返回对象字符串表示
 func (cf *CompiledFunction) Inspect() string {

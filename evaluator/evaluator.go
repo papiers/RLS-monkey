@@ -139,9 +139,9 @@ func evalBlockStatement(block *ast.BlockStatement, env *object.Environment) obje
 		if result != nil {
 			rt := result.Type()
 			switch rt {
-			case object.RETURN_VALUE:
+			case object.ReturnValueObj:
 				return result
-			case object.ERROR:
+			case object.ErrorObj:
 				return result
 			}
 		}
@@ -173,7 +173,7 @@ func evalBangOperatorExpression(right object.Object) object.Object {
 
 // evalMinusPrefixOperatorExpression 执行前缀表达式 -
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
-	if integer, ok := right.(*object.Integer); ok && right.Type() == object.INTEGER {
+	if integer, ok := right.(*object.Integer); ok && right.Type() == object.IntegerObj {
 		return &object.Integer{Value: -integer.Value}
 	}
 	return &object.Error{
@@ -184,14 +184,14 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 // evalInfixExpression 执行中缀表达式
 func evalInfixExpression(operator string, left, right object.Object) object.Object {
 
-	if left.Type() == object.INTEGER && right.Type() == object.INTEGER {
+	if left.Type() == object.IntegerObj && right.Type() == object.IntegerObj {
 		l, okLeft := left.(*object.Integer)
 		r, okRight := right.(*object.Integer)
 		if okLeft && okRight {
 			return evalIntegerInfixExpression(operator, l, r)
 		}
 	}
-	if left.Type() == object.STRING && right.Type() == object.STRING {
+	if left.Type() == object.StringObj && right.Type() == object.StringObj {
 		l, okLeft := left.(*object.String)
 		r, okRight := right.(*object.String)
 		if okLeft && okRight {
@@ -272,7 +272,7 @@ func isTruthy(obj object.Object) bool {
 // isError 判断对象是否为错误
 func isError(obj object.Object) bool {
 	if obj != nil {
-		return obj.Type() == object.ERROR
+		return obj.Type() == object.ErrorObj
 	}
 	return false
 }
@@ -339,13 +339,13 @@ func unwrapReturnValue(obj object.Object) object.Object {
 // evalIndexExpression 计算索引表达式
 func evalIndexExpression(left, index object.Object) object.Object {
 	switch {
-	case left.Type() == object.ARRAY && index.Type() == object.INTEGER:
+	case left.Type() == object.ArrayObj && index.Type() == object.IntegerObj:
 		l, okL := left.(*object.Array)
 		i, okI := index.(*object.Integer)
 		if okL && okI {
 			return evalArrayIndexExpression(l, i)
 		}
-	case left.Type() == object.HASH:
+	case left.Type() == object.HashObj:
 		l, okL := left.(*object.Hash)
 		if okL {
 			return evalHashIndexExpression(l, index)

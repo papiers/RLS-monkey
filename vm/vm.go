@@ -272,9 +272,9 @@ func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 	leftType := left.Type()
 	rightType := right.Type()
 	switch {
-	case leftType == object.INTEGER && rightType == object.INTEGER:
+	case leftType == object.IntegerObj && rightType == object.IntegerObj:
 		return vm.executeBinaryIntegerOperation(op, left, right)
-	case leftType == object.STRING && rightType == object.STRING:
+	case leftType == object.StringObj && rightType == object.StringObj:
 		return vm.executeBinaryStringOperation(op, left, right)
 	}
 	return fmt.Errorf("unsupported types for binary operation: %s %s", leftType, rightType)
@@ -316,7 +316,7 @@ func (vm *VM) executeComparison(op code.Opcode) error {
 	left := vm.pop()
 	leftType := left.Type()
 	rightType := right.Type()
-	if leftType == object.INTEGER && rightType == object.INTEGER {
+	if leftType == object.IntegerObj && rightType == object.IntegerObj {
 		return vm.executeIntegerComparison(op, left, right)
 	}
 	switch op {
@@ -374,7 +374,7 @@ func (vm *VM) executeBangOperator() error {
 // executeMinusOperator 执行负号操作
 func (vm *VM) executeMinusOperator() error {
 	operand := vm.pop()
-	if operand.Type() != object.INTEGER {
+	if operand.Type() != object.IntegerObj {
 		return fmt.Errorf("unsupported type for negation: %s", operand.Type())
 	}
 	value := operand.(*object.Integer).Value
@@ -420,9 +420,9 @@ func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
 // executeIndexExpression 执行索引表达式
 func (vm *VM) executeIndexExpression(left, index object.Object) error {
 	switch {
-	case left.Type() == object.ARRAY && index.Type() == object.INTEGER:
+	case left.Type() == object.ArrayObj && index.Type() == object.IntegerObj:
 		return vm.executeArrayIndex(left, index)
-	case left.Type() == object.HASH:
+	case left.Type() == object.HashObj:
 		return vm.executeHashIndex(left, index)
 	default:
 		return fmt.Errorf("index operator not supported: %s", left.Type())
