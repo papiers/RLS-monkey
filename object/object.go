@@ -275,3 +275,20 @@ func (cf *CompiledFunction) Type() TypeObject { return CompliedFunctionObj }
 func (cf *CompiledFunction) Inspect() string {
 	return fmt.Sprintf("CompiledFunction[%p]", cf)
 }
+
+// Closure 闭包对象
+type Closure struct {
+	Fn   *CompiledFunction
+	Free []Object
+}
+
+// 定义 Closure 对象实现 Object 接口
+var _ Object = (*Closure)(nil)
+
+// Type 返回对象类型
+func (c *Closure) Type() TypeObject { return ClosureObj }
+
+// Inspect 返回对象字符串表示
+func (c *Closure) Inspect() string {
+	return fmt.Sprintf("Closure[%p]", c)
+}

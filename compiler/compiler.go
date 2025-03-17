@@ -258,7 +258,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			NumLocals:     numLocals,
 			NumParameters: len(n.Parameters),
 		}
-		c.emit(code.OpConstant, c.addConstant(compiledFn))
+		c.emit(code.OpClosure, c.addConstant(compiledFn), 0)
 	case *ast.ReturnStatement:
 		err := c.Compile(n.ReturnValue)
 		if err != nil {
