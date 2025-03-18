@@ -215,13 +215,22 @@ func (vm *VM) Run() error {
 			}
 		case code.OpClosure:
 			constIndex := code.ReadUint16(ins[ip+1:])
-			_ = code.ReadUint8(ins[ip+3:])
+			numFree := code.ReadUint8(ins[ip+3:])
 			vm.currentFrame().ip += 3
 
-			err := vm.pushClosure(int(constIndex))
+			err := vm.pushClosure(int(constIndex), int(numFree))
 			if err != nil {
 				return err
 			}
+		case code.OpGetFree:
+			freeIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			err := vm.push(vm.currentFrame().cl.Free[freeIndex])
+			if err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("unknown opcode: %d", op)
 		}
@@ -507,11 +516,17 @@ func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
 }
 
 // pushClosure 推送闭包
-func (vm *VM) pushClosure(constIndex int) error {
+func (vm *VM) pushClosure(constIndex, numFree int) error {
 	constants := vm.constants[constIndex]
 	fn, ok := constants.(*object.CompiledFunction)
 	if !ok {
 		return fmt.Errorf("not a compiled function: %T", constants)
 	}
-	return vm.push(&object.Closure{Fn: fn})
+	free := make([]object.Object, numFree)
+	copy(free, vm.stack[vm.sp-numFree:vm.sp])
+	vm.sp -= numFree
+	return vm.push(&object.Closure{
+		Fn:   fn,
+		Free: free,
+	})
 }
