@@ -154,6 +154,10 @@ func (p *Parser) parseLetStatement() ast.Statement {
 	// 解析表达式
 	stmt.Value = p.parseExpression(lowest)
 
+	if fl, ok := stmt.Value.(*ast.FunctionLiteral); ok {
+		fl.Name = stmt.Name.Value
+	}
+
 	for p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}

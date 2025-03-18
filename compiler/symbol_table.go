@@ -4,10 +4,11 @@ package compiler
 type SymbolScope string
 
 const (
-	GlobalScope  SymbolScope = "GLOBAL"
-	LocalScope   SymbolScope = "LOCAL"
-	BuiltinScope SymbolScope = "BUILTIN"
-	FreeScope    SymbolScope = "FREE"
+	GlobalScope   SymbolScope = "GLOBAL"
+	LocalScope    SymbolScope = "LOCAL"
+	BuiltinScope  SymbolScope = "BUILTIN"
+	FreeScope     SymbolScope = "FREE"
+	FunctionScope SymbolScope = "FUNCTION"
 )
 
 // Symbol 符号
@@ -91,5 +92,15 @@ func (st *SymbolTable) DefineFree(original Symbol) Symbol {
 		Scope: FreeScope,
 	}
 	st.store[original.Name] = symbol
+	return symbol
+}
+
+// DefineFunctionName 定义函数名
+func (st *SymbolTable) DefineFunctionName(name string) Symbol {
+	symbol := Symbol{
+		Name:  name,
+		Scope: FunctionScope,
+	}
+	st.store[name] = symbol
 	return symbol
 }

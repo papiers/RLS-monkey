@@ -324,6 +324,7 @@ type FunctionLiteral struct {
 	Token      token.Token     // 函数token
 	Parameters []*Identifier   // 函数参数列表
 	Body       *BlockStatement // 函数体
+	Name       string
 }
 
 // 定义函数节点为表达式
@@ -345,6 +346,9 @@ func (f *FunctionLiteral) String() string {
 		params = append(params, p.String())
 	}
 	out.WriteString(f.TokenLiteral())
+	if f.Name != "" {
+		out.WriteString("<" + f.Name + ">")
+	}
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(") ")
