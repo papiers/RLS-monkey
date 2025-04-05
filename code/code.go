@@ -176,6 +176,5 @@ func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
 	case 2:
 		return fmt.Sprintf("%s %d %d", def.Name, operands[0], operands[1])
 	}
-
 	return fmt.Sprintf("ERROR: unsupported operand arity for %s", def.Name)
 }
